@@ -30,6 +30,8 @@ const toolNames = Object.keys(hooks.tool ?? {})
 check("registers cognee_recall", toolNames.includes("cognee_recall"))
 check("registers cognee_remember", toolNames.includes("cognee_remember"))
 check("registers cognee_feedback", toolNames.includes("cognee_feedback"))
+check("registers cognee_optimize", toolNames.includes("cognee_optimize"))
+check("registers cognee_forget", toolNames.includes("cognee_forget"))
 
 for (const h of [
   "chat.message",
