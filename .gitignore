@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.log
+.env
+cognee.json
+cognee-status.json
+.DS_Store
+bun.lockb

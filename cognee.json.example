@@ -1,0 +1,13 @@
+{
+  "_comment": "Copy this to ~/.config/opencode/cognee.json (global) or <project>/.opencode/cognee.json. The plugin reads it directly, so you do NOT need shell exports. Env vars still win if set. Delete the _comment line.",
+
+  "mode": "cloud",
+  "baseUrl": "https://your-instance.cognee.ai",
+  "apiKey": "ck_your_api_key_here",
+
+  "dataset": "my-project-memory",
+  "topK": 8,
+  "debug": false,
+
+  "_localExample": "For self-hosted instead: set mode=local, baseUrl=http://localhost:8000, and either username+password or nothing if access control is off."
+}
