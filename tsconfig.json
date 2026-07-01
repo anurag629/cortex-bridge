@@ -10,7 +10,10 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@cortex-bridge/core": ["./packages/core/src/index.ts"]
+    }
   },
-  "include": ["src", "scripts", "build.ts"]
+  "include": ["packages/**/*.ts", "scripts/**/*.ts"]
 }

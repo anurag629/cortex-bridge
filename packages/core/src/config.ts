@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import type { PluginInput } from "./types"
+import type { WorkspaceIdentity } from "./types"
 import { slug } from "./util"
 
 export type CogneeMode = "local" | "cloud"
@@ -37,16 +37,21 @@ function asBool(v: unknown): boolean {
   return v === true || v === "true" || v === "1"
 }
 
-// OpenCode does not load .env files into the plugin process, and relying on the
-// launching shell's exports is fragile. So we also read a JSON config file from
-// the OpenCode config dir (and the project's .opencode/). Precedence:
-//   env var  >  project .opencode/cognee.json  >  ~/.config/opencode/cognee.json  >  default
-function loadFileConfig(input?: Partial<PluginInput>): { data: Record<string, any>; from: string[] } {
+// Hosts rarely load .env into the agent process and shell exports are fragile,
+// so we also read a JSON config file. We check the Cortex Bridge locations and,
+// for continuity, the legacy OpenCode ones. Precedence: an env var beats every
+// file; a project file beats a global one; and the newer cortex-bridge path
+// beats the legacy opencode path at the same level.
+function loadFileConfig(id?: WorkspaceIdentity): { data: Record<string, any>; from: string[] } {
+  const projectDirs = [id?.worktree, id?.directory].filter((p): p is string => Boolean(p))
   const candidates = [
-    join(homedir(), ".config", "opencode", "cognee.json"),
-    input?.worktree ? join(input.worktree, ".opencode", "cognee.json") : undefined,
-    input?.directory ? join(input.directory, ".opencode", "cognee.json") : undefined,
-  ].filter((p): p is string => Boolean(p))
+    join(homedir(), ".config", "opencode", "cognee.json"), // legacy global
+    join(homedir(), ".config", "cortex-bridge", "config.json"), // global (wins over legacy)
+    ...projectDirs.flatMap((d) => [
+      join(d, ".opencode", "cognee.json"), // legacy project
+      join(d, ".cortex-bridge", "config.json"), // project (wins)
+    ]),
+  ]
 
   let data: Record<string, any> = {}
   const from: string[] = []
@@ -54,7 +59,7 @@ function loadFileConfig(input?: Partial<PluginInput>): { data: Record<string, an
     try {
       const parsed = JSON.parse(readFileSync(p, "utf8"))
       if (parsed && typeof parsed === "object") {
-        data = { ...data, ...parsed } // later files (project) override earlier (global)
+        data = { ...data, ...parsed } // later files override earlier
         from.push(p)
       }
     } catch {
@@ -64,27 +69,22 @@ function loadFileConfig(input?: Partial<PluginInput>): { data: Record<string, an
   return { data, from }
 }
 
-export function resolveConfig(
-  input?: Partial<PluginInput>,
-  options?: Record<string, any>,
-): CogneeConfig {
-  const { data: file, from } = loadFileConfig(input)
+export function resolveConfig(id?: WorkspaceIdentity, options?: Record<string, any>): CogneeConfig {
+  const { data: file, from } = loadFileConfig(id)
 
   // value precedence helper: env > file > options > default
   const val = (envName: string, key: string, dflt?: any) =>
     env(envName) ?? file[key] ?? options?.[key] ?? dflt
 
-  const mode = (val("COGNEE_MODE", "mode", "local") as CogneeMode)
-  const baseUrl = String(val("COGNEE_BASE_URL", "baseUrl", "http://localhost:8000")).replace(/\/+$/, "")
+  const mode = val("COGNEE_MODE", "mode", "local") as CogneeMode
+  const baseUrl = String(val("COGNEE_BASE_URL", "baseUrl", "http://localhost:8000")).replace(
+    /\/+$/,
+    "",
+  )
   const apiPrefix = String(val("COGNEE_API_PREFIX", "apiPrefix", "/api/v1"))
 
-  const projectKey =
-    input?.project?.id ||
-    input?.project?.worktree ||
-    input?.worktree ||
-    input?.directory ||
-    process.cwd()
-  const dataset = String(val("COGNEE_DATASET", "dataset", `oc-mem-${slug(String(projectKey))}`))
+  const projectKey = id?.projectId || id?.worktree || id?.directory || process.cwd()
+  const dataset = String(val("COGNEE_DATASET", "dataset", `cortex-${slug(String(projectKey))}`))
 
   const sources: string[] = []
   if (env("COGNEE_BASE_URL") || env("COGNEE_API_KEY") || env("COGNEE_MODE")) sources.push("env")
@@ -100,7 +100,8 @@ export function resolveConfig(
     dataset,
     topK: asNum(val("COGNEE_TOP_K", "topK"), 8),
     bridgeDebounceMs: asNum(val("COGNEE_BRIDGE_DEBOUNCE_MS", "bridgeDebounceMs"), 120_000),
-    captureToolOutput: (env("COGNEE_CAPTURE_TOOL_OUTPUT") ?? String(file.captureToolOutput ?? "true")) !== "false",
+    captureToolOutput:
+      (env("COGNEE_CAPTURE_TOOL_OUTPUT") ?? String(file.captureToolOutput ?? "true")) !== "false",
     requestTimeoutMs: asNum(val("COGNEE_REQUEST_TIMEOUT_MS", "requestTimeoutMs"), 30_000),
     recallTimeoutMs: asNum(val("COGNEE_RECALL_TIMEOUT_MS", "recallTimeoutMs"), 10_000),
     debug: asBool(env("COGNEE_DEBUG") ?? file.debug ?? options?.debug ?? false),

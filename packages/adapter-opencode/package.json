@@ -1,0 +1,26 @@
+{
+  "name": "@cortex-bridge/opencode",
+  "version": "0.1.0",
+  "description": "OpenCode adapter for Cortex Bridge: persistent, cross-agent memory backed by Cognee.",
+  "type": "module",
+  "license": "MIT",
+  "author": "anurag629",
+  "keywords": ["opencode", "opencode-plugin", "cognee", "memory", "agent", "ai", "cortex-bridge"],
+  "engines": {
+    "opencode": ">=1.17.0"
+  },
+  "bin": {
+    "cortex-bridge-opencode": "./dist/install.js"
+  },
+  "exports": {
+    ".": "./dist/cognee.plugin.js",
+    "./server": "./dist/cognee.plugin.js"
+  },
+  "files": ["dist", "README.md"],
+  "dependencies": {
+    "@cortex-bridge/core": "workspace:*"
+  },
+  "scripts": {
+    "build": "bun run build.ts"
+  }
+}

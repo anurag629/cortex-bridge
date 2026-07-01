@@ -1,0 +1,13 @@
+{
+  "name": "@cortex-bridge/core",
+  "version": "0.1.0",
+  "description": "Runtime-agnostic memory engine for Cortex Bridge, backed by Cognee.",
+  "type": "module",
+  "license": "MIT",
+  "author": "anurag629",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": ["src"]
+}

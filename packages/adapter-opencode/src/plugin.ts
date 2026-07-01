@@ -1,14 +1,21 @@
-import { CogneeClient } from "./client"
-import { resolveConfig } from "./config"
-import { SessionBuffer } from "./buffer"
-import { qaEntry, traceFromTool } from "./capture"
-import { extractAssistantText, extractUserText, formatRecall } from "./format"
-import { Status } from "./status"
-import { uid } from "./util"
+import {
+  CogneeClient,
+  formatRecall,
+  qaEntry,
+  resolveConfig,
+  SessionBuffer,
+  Status,
+  traceFromTool,
+  uid,
+} from "@cortex-bridge/core"
+import { extractAssistantText, extractUserText } from "./transcript"
 import type { Hooks, PluginInput, PluginModule, ToolDefinition } from "./types"
 
 const server = async (input: PluginInput, options?: Record<string, any>): Promise<Hooks> => {
-  const cfg = resolveConfig(input, options)
+  const cfg = resolveConfig(
+    { projectId: input.project?.id, worktree: input.worktree, directory: input.directory },
+    options,
+  )
   const log = (msg: string, ...a: any[]) => {
     if (cfg.debug) console.error(`[cognee] ${msg}`, ...a)
   }

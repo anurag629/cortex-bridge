@@ -1,28 +1,17 @@
 {
-  "name": "@anurag629/opencode-cognee",
+  "name": "cortex-bridge",
   "version": "0.1.0",
-  "description": "Persistent memory for OpenCode, backed by Cognee. Auto-captures agent activity, recalls across sessions, survives compaction, and learns from feedback.",
+  "private": true,
+  "description": "One memory graph, every coding agent. A shared, cross-agent memory layer backed by Cognee.",
   "type": "module",
   "license": "MIT",
   "author": "anurag629",
-  "keywords": ["opencode", "opencode-plugin", "cognee", "memory", "agent", "ai"],
-  "engines": {
-    "opencode": ">=1.17.0"
-  },
-  "bin": {
-    "opencode-cognee": "./dist/install.js"
-  },
-  "exports": {
-    ".": "./dist/cognee.plugin.js",
-    "./server": "./dist/cognee.plugin.js"
-  },
-  "files": ["dist", "README.md", ".env.example"],
+  "workspaces": ["packages/*"],
   "scripts": {
-    "build": "bun run build.ts",
     "typecheck": "tsc --noEmit",
+    "build": "bun run packages/adapter-opencode/build.ts",
     "smoke": "bun run scripts/smoke.ts",
-    "link": "bun run dist/install.js",
-    "prepublishOnly": "bun run build.ts"
+    "check": "bun run scripts/plugin-check.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
