@@ -1,14 +1,22 @@
-# @anurag629/opencode-cognee
+# Cortex Bridge
 
-Persistent memory for [OpenCode](https://opencode.ai), backed by [Cognee](https://github.com/topoteretes/cognee).
+One memory graph, every coding agent. A shared, cross-agent memory layer backed by [Cognee](https://github.com/topoteretes/cognee): capture a decision in one agent, resume it in any other.
 
-OpenCode forgets everything between sessions. This plugin gives it a real memory: it auto-captures what the agent does, recalls relevant context before the model answers, keeps that memory alive across `/compact`, and learns from feedback. Everything is stored in a Cognee knowledge graph, one per project.
+Most AI coding agents forget everything between sessions, and none of them share memory with each other. Cortex Bridge fixes both. A runtime-agnostic core (`@cortex-bridge/core`) talks to a Cognee knowledge graph, and thin per-agent adapters wire it into each tool. Work in [OpenCode](https://opencode.ai), then open Claude Code or Cursor in the same repo, and the agent already knows what you changed and why.
 
-Built for the WeMakeDevs x Cognee hackathon. Self-hosted first, with a one-flag toggle to Cognee Cloud.
+Built for the WeMakeDevs x Cognee hackathon. Runs fully local (self-hosted Cognee on Ollama, no external API) with a one-flag toggle to Cognee Cloud.
 
-## How it works
+This repo is a workspace:
 
-The plugin speaks HTTP to a running Cognee server. Capture is cheap (writes to Cognee's session cache, no graph build); the expensive graph build runs once, in the background, at session boundaries.
+- `packages/core` is the runtime-agnostic memory engine. It owns the full Cognee lifecycle (remember, recall, improve/memify, forget) and knows nothing about any specific agent.
+- `packages/adapter-opencode` is the OpenCode adapter, the reference native integration documented below.
+- More adapters (Claude Code, and MCP for Cursor, Copilot, Codex) sit alongside it, each one thin because the core does the work.
+
+Cognee ships its own single-agent plugins, including a basic OpenCode one. Cortex Bridge is the deeper cross-agent take: one shared graph across a fleet of agents, not memory trapped inside one tool.
+
+## How the OpenCode adapter works
+
+The adapter speaks HTTP to a running Cognee server through the core. Capture is cheap (writes to Cognee's session cache, no graph build); the expensive graph build runs once, in the background, at session boundaries.
 
 | OpenCode hook | What happens | Cognee call |
 |---|---|---|

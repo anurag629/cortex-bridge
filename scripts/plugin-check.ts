@@ -5,7 +5,7 @@
 //   bun run scripts/plugin-check.ts
 // @ts-ignore - deliberately importing the built bundle (no type declarations);
 // this script validates the exact artifact OpenCode loads.
-import plugin from "../dist/cognee.plugin.js"
+import plugin from "../packages/adapter-opencode/dist/cognee.plugin.js"
 
 let failures = 0
 function check(name: string, cond: boolean) {

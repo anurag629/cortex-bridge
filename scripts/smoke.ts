@@ -5,8 +5,7 @@
 //
 // Honors the same COGNEE_* env vars as the plugin. Uses a dedicated dataset and
 // a fresh session id so it never pollutes real project memory.
-import { resolveConfig } from "../src/config"
-import { CogneeClient } from "../src/client"
+import { resolveConfig, CogneeClient } from "@cortex-bridge/core"
 
 const cfg = resolveConfig(undefined, { dataset: process.env.COGNEE_DATASET ?? "oc-mem-smoke" })
 const log = (m: string, ...a: any[]) => console.log(`[smoke] ${m}`, ...a)
