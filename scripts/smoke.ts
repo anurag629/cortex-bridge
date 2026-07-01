@@ -7,10 +7,12 @@
 // a fresh session id so it never pollutes real project memory.
 import { resolveConfig, CogneeClient } from "@cortex-bridge/core"
 
-const cfg = resolveConfig(undefined, { dataset: process.env.COGNEE_DATASET ?? "oc-mem-smoke" })
+const cfg = resolveConfig(undefined, {
+  dataset: process.env.CORTEX_DATASET ?? process.env.COGNEE_DATASET ?? "cortex-smoke",
+})
 const log = (m: string, ...a: any[]) => console.log(`[smoke] ${m}`, ...a)
 const client = new CogneeClient(cfg, log)
-const sid = `oc-smoke-${Date.now()}`
+const sid = `cortex-smoke-${Date.now()}`
 
 async function time<T>(label: string, p: Promise<T>): Promise<T> {
   const t = Date.now()

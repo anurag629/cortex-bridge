@@ -2,11 +2,11 @@ import { mkdirSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 
-// Writes a small, human-readable snapshot of what the plugin is doing to
-// ~/.config/opencode/cognee-status.json. OpenCode does not surface plugin
-// console output, so this file is the way to verify the plugin is connected,
+// Writes a small, human-readable snapshot of what an adapter is doing to
+// ~/.config/cortex-bridge/status.json. Hosts often do not surface plugin
+// console output, so this file is the way to verify the adapter is connected,
 // which server/dataset it is using, and whether captures are flowing.
-const STATUS_PATH = join(homedir(), ".config", "opencode", "cognee-status.json")
+const STATUS_PATH = join(homedir(), ".config", "cortex-bridge", "status.json")
 
 export class Status {
   private data: Record<string, any>

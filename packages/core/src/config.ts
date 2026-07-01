@@ -23,9 +23,15 @@ export interface CogneeConfig {
   source: string // where config came from, for the status file
 }
 
-function env(name: string): string | undefined {
-  const v = process.env[name]
-  return v && v.trim() !== "" ? v.trim() : undefined
+// Read an env var by suffix, preferring the CORTEX_ prefix and falling back to
+// the legacy COGNEE_ prefix so older setups keep working. So CORTEX_BASE_URL
+// wins, then COGNEE_BASE_URL.
+function env(suffix: string): string | undefined {
+  for (const name of [`CORTEX_${suffix}`, `COGNEE_${suffix}`]) {
+    const v = process.env[name]
+    if (v && v.trim() !== "") return v.trim()
+  }
+  return undefined
 }
 
 function asNum(v: unknown, fallback: number): number {
@@ -72,39 +78,36 @@ function loadFileConfig(id?: WorkspaceIdentity): { data: Record<string, any>; fr
 export function resolveConfig(id?: WorkspaceIdentity, options?: Record<string, any>): CogneeConfig {
   const { data: file, from } = loadFileConfig(id)
 
-  // value precedence helper: env > file > options > default
-  const val = (envName: string, key: string, dflt?: any) =>
-    env(envName) ?? file[key] ?? options?.[key] ?? dflt
+  // value precedence helper: env (CORTEX_ then COGNEE_) > file > options > default
+  const val = (suffix: string, key: string, dflt?: any) =>
+    env(suffix) ?? file[key] ?? options?.[key] ?? dflt
 
-  const mode = val("COGNEE_MODE", "mode", "local") as CogneeMode
-  const baseUrl = String(val("COGNEE_BASE_URL", "baseUrl", "http://localhost:8000")).replace(
-    /\/+$/,
-    "",
-  )
-  const apiPrefix = String(val("COGNEE_API_PREFIX", "apiPrefix", "/api/v1"))
+  const mode = val("MODE", "mode", "local") as CogneeMode
+  const baseUrl = String(val("BASE_URL", "baseUrl", "http://localhost:8000")).replace(/\/+$/, "")
+  const apiPrefix = String(val("API_PREFIX", "apiPrefix", "/api/v1"))
 
   const projectKey = id?.projectId || id?.worktree || id?.directory || process.cwd()
-  const dataset = String(val("COGNEE_DATASET", "dataset", `cortex-${slug(String(projectKey))}`))
+  const dataset = String(val("DATASET", "dataset", `cortex-${slug(String(projectKey))}`))
 
   const sources: string[] = []
-  if (env("COGNEE_BASE_URL") || env("COGNEE_API_KEY") || env("COGNEE_MODE")) sources.push("env")
+  if (env("BASE_URL") || env("API_KEY") || env("MODE")) sources.push("env")
   sources.push(...from)
 
   return {
     mode,
     baseUrl,
     apiPrefix,
-    username: val("COGNEE_USERNAME", "username"),
-    password: val("COGNEE_PASSWORD", "password"),
-    apiKey: val("COGNEE_API_KEY", "apiKey"),
+    username: val("USERNAME", "username"),
+    password: val("PASSWORD", "password"),
+    apiKey: val("API_KEY", "apiKey"),
     dataset,
-    topK: asNum(val("COGNEE_TOP_K", "topK"), 8),
-    bridgeDebounceMs: asNum(val("COGNEE_BRIDGE_DEBOUNCE_MS", "bridgeDebounceMs"), 120_000),
+    topK: asNum(val("TOP_K", "topK"), 8),
+    bridgeDebounceMs: asNum(val("BRIDGE_DEBOUNCE_MS", "bridgeDebounceMs"), 120_000),
     captureToolOutput:
-      (env("COGNEE_CAPTURE_TOOL_OUTPUT") ?? String(file.captureToolOutput ?? "true")) !== "false",
-    requestTimeoutMs: asNum(val("COGNEE_REQUEST_TIMEOUT_MS", "requestTimeoutMs"), 30_000),
-    recallTimeoutMs: asNum(val("COGNEE_RECALL_TIMEOUT_MS", "recallTimeoutMs"), 10_000),
-    debug: asBool(env("COGNEE_DEBUG") ?? file.debug ?? options?.debug ?? false),
+      (env("CAPTURE_TOOL_OUTPUT") ?? String(file.captureToolOutput ?? "true")) !== "false",
+    requestTimeoutMs: asNum(val("REQUEST_TIMEOUT_MS", "requestTimeoutMs"), 30_000),
+    recallTimeoutMs: asNum(val("RECALL_TIMEOUT_MS", "recallTimeoutMs"), 10_000),
+    debug: asBool(env("DEBUG") ?? file.debug ?? options?.debug ?? false),
     source: sources.length ? sources.join(", ") : "defaults",
   }
 }
