@@ -206,6 +206,23 @@ export interface ForgetRequest {
   memory_only?: boolean
 }
 
+// cognify / memify use camelCase fields (the classic-pipeline endpoints),
+// unlike the snake_case memory endpoints above.
+export interface CognifyRequest {
+  datasets?: string[] | null
+  datasetIds?: string[] | null
+  runInBackground?: boolean
+}
+
+export interface MemifyRequest {
+  datasetName?: string | null
+  datasetId?: string | null
+  nodeName?: string[] | null
+  extractionTasks?: string[] | null
+  enrichmentTasks?: string[] | null
+  runInBackground?: boolean
+}
+
 export interface HealthResponse {
   status: string
   health?: string

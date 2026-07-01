@@ -18,7 +18,7 @@ The plugin speaks HTTP to a running Cognee server. Capture is cheap (writes to C
 | `session.idle` | pair the question with the answer; debounced bridge to the graph | `POST /remember/entry`, `POST /improve` |
 | `dispose` | flush pending sessions into the graph | `POST /improve` |
 
-It also exposes three tools the model can call directly: `cognee_recall`, `cognee_remember`, and `cognee_feedback`.
+It also exposes five tools the model can call directly: `cognee_recall`, `cognee_remember`, `cognee_feedback`, `cognee_optimize` (run `memify` to consolidate and reweight the graph), and `cognee_forget` (prune stored memory). Together these exercise the full Cognee lifecycle: remember, recall, improve/memify, and forget.
 
 ## Server prerequisites
 

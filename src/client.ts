@@ -1,8 +1,10 @@
 import type { CogneeConfig } from "./config"
 import type {
+  CognifyRequest,
   ForgetRequest,
   HealthResponse,
   ImproveRequest,
+  MemifyRequest,
   MemoryEntry,
   RecallItem,
   RecallRequest,
@@ -212,6 +214,27 @@ export class CogneeClient {
 
   async forget(req: ForgetRequest): Promise<void> {
     await this.req("POST", "/forget", req)
+  }
+
+  // Build the knowledge graph from a dataset's ingested data (the full
+  // extract-cognify-load pipeline). Heavy: runs LLM extraction. Backgrounded.
+  // Available on self-hosted and cloud. Note: camelCase fields.
+  async cognify(datasets?: string[]): Promise<void> {
+    const body: CognifyRequest = {
+      datasets: datasets ?? [this.cfg.dataset],
+      runInBackground: true,
+    }
+    await this.req("POST", "/cognify", body, { retries: 0 })
+  }
+
+  // Optimize the graph: enrich, prune stale nodes, reweight edges. Self-hosted
+  // only (cloud omits it); a 404 there is handled quietly by req(). Note: camelCase.
+  async memify(): Promise<void> {
+    const body: MemifyRequest = {
+      datasetName: this.cfg.dataset,
+      runInBackground: true,
+    }
+    await this.req("POST", "/memify", body, { retries: 0 })
   }
 
   visualizeUrl(): string {

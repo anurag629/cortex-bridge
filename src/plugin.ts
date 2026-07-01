@@ -101,6 +101,37 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
     },
   }
 
+  const cognee_optimize: ToolDefinition = {
+    description:
+      "Optimize this project's memory graph: consolidate related facts, prune stale nodes, and reweight connections from accumulated feedback. Run it after a lot of new activity or several feedback entries.",
+    args: {},
+    async execute() {
+      await client.memify()
+      return "Memory optimization started (runs in the background)."
+    },
+  }
+
+  const cognee_forget: ToolDefinition = {
+    description:
+      "Delete stored memory for this project. Use only when the user explicitly asks to forget or reset memory. By default clears this project's knowledge graph and cached entries; raw ingested files are kept.",
+    args: {
+      everything: {
+        type: "boolean",
+        description:
+          "If true, delete ALL of this user's memory across every project, not just this one. Use with extreme care and only on explicit request.",
+      },
+    },
+    async execute(args) {
+      const everything = Boolean(args?.everything)
+      await client.forget(
+        everything ? { everything: true } : { dataset: cfg.dataset, memory_only: true },
+      )
+      return everything
+        ? "Deleted all stored memory."
+        : `Cleared memory for ${cfg.dataset}.`
+    },
+  }
+
   // --- helpers ----------------------------------------------------------------
 
   // On idle, pair the user's question with the assistant's reply and store it.
@@ -126,7 +157,7 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
   // --- hooks ------------------------------------------------------------------
 
   const hooks: Hooks = {
-    tool: { cognee_recall, cognee_remember, cognee_feedback },
+    tool: { cognee_recall, cognee_remember, cognee_feedback, cognee_optimize, cognee_forget },
 
     // Auto-recall: inject relevant memory before the model answers.
     "chat.message": async (inp, out) => {
