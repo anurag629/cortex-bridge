@@ -13,8 +13,8 @@
     "cortex-bridge-opencode": "./dist/install.js"
   },
   "exports": {
-    ".": "./dist/cognee.plugin.js",
-    "./server": "./dist/cognee.plugin.js"
+    ".": "./dist/cortex-bridge.plugin.js",
+    "./server": "./dist/cortex-bridge.plugin.js"
   },
   "files": ["dist", "README.md"],
   "dependencies": {

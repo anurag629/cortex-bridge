@@ -28,7 +28,7 @@ async function build(entry: string, outName: string, banner?: string) {
   }
 }
 
-await build("src/plugin.ts", "cognee.plugin.js")
+await build("src/plugin.ts", "cortex-bridge.plugin.js")
 await build("src/install.ts", "install.js", "#!/usr/bin/env bun")
 await chmod(join(outdir, "install.js"), 0o755)
-console.log("built dist/cognee.plugin.js and dist/install.js")
+console.log("built dist/cortex-bridge.plugin.js and dist/install.js")

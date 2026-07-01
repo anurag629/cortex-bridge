@@ -5,7 +5,7 @@
 //   bun run scripts/plugin-check.ts
 // @ts-ignore - deliberately importing the built bundle (no type declarations);
 // this script validates the exact artifact OpenCode loads.
-import plugin from "../packages/adapter-opencode/dist/cognee.plugin.js"
+import plugin from "../packages/adapter-opencode/dist/cortex-bridge.plugin.js"
 
 let failures = 0
 function check(name: string, cond: boolean) {
@@ -21,17 +21,17 @@ const mockInput = {
 }
 
 check("default export is an object", typeof plugin === "object" && plugin !== null)
-check("plugin.id === 'cognee'", (plugin as any).id === "cognee")
+check("plugin.id === 'cortex-bridge'", (plugin as any).id === "cortex-bridge")
 check("plugin.server is a function", typeof (plugin as any).server === "function")
 
 const hooks = await (plugin as any).server(mockInput, {})
 
 const toolNames = Object.keys(hooks.tool ?? {})
-check("registers cognee_recall", toolNames.includes("cognee_recall"))
-check("registers cognee_remember", toolNames.includes("cognee_remember"))
-check("registers cognee_feedback", toolNames.includes("cognee_feedback"))
-check("registers cognee_optimize", toolNames.includes("cognee_optimize"))
-check("registers cognee_forget", toolNames.includes("cognee_forget"))
+check("registers cortex_recall", toolNames.includes("cortex_recall"))
+check("registers cortex_remember", toolNames.includes("cortex_remember"))
+check("registers cortex_feedback", toolNames.includes("cortex_feedback"))
+check("registers cortex_optimize", toolNames.includes("cortex_optimize"))
+check("registers cortex_forget", toolNames.includes("cortex_forget"))
 
 for (const h of [
   "chat.message",
@@ -54,8 +54,8 @@ const ctx = {
   metadata() {},
   ask: async () => {},
 }
-const out = await hooks.tool.cognee_recall.execute({ query: "auth" }, ctx)
-console.log("\ncognee_recall ->", typeof out === "string" ? out : JSON.stringify(out).slice(0, 400))
+const out = await hooks.tool.cortex_recall.execute({ query: "auth" }, ctx)
+console.log("\ncortex_recall ->", typeof out === "string" ? out : JSON.stringify(out).slice(0, 400))
 
 // Exercise the chat.message injection path with a fake user message.
 const parts: any[] = [

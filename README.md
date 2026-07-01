@@ -26,7 +26,7 @@ The adapter speaks HTTP to a running Cognee server through the core. Capture is 
 | `session.idle` | pair the question with the answer; debounced bridge to the graph | `POST /remember/entry`, `POST /improve` |
 | `dispose` | flush pending sessions into the graph | `POST /improve` |
 
-It also exposes five tools the model can call directly: `cognee_recall`, `cognee_remember`, `cognee_feedback`, `cognee_optimize` (run `memify` to consolidate and reweight the graph), and `cognee_forget` (prune stored memory). Together these exercise the full Cognee lifecycle: remember, recall, improve/memify, and forget.
+It also exposes five tools the model can call directly: `cortex_recall`, `cortex_remember`, `cortex_feedback`, `cortex_optimize` (run `memify` to consolidate and reweight the graph), and `cortex_forget` (prune stored memory). Together these exercise the full Cognee lifecycle: remember, recall, improve/memify, and forget.
 
 ## Server prerequisites
 
@@ -36,7 +36,7 @@ You need a running Cognee server (v1.2.1+). When starting it:
 - Set `LLM_API_KEY` (used by recall completions and the graph build).
 - Auth, pick one:
   - Fastest local dev: `ENABLE_BACKEND_ACCESS_CONTROL=False` and `REQUIRE_AUTHENTICATION=False`, then no credentials are needed.
-  - Access control on (the default): set `COGNEE_USERNAME` / `COGNEE_PASSWORD` and the plugin logs in.
+  - Access control on (the default): set `CORTEX_USERNAME` / `CORTEX_PASSWORD` and the plugin logs in.
 
 Then `docker compose up` and confirm `curl localhost:8000/health` returns `{"status":"ready"}`.
 
@@ -44,23 +44,23 @@ Then `docker compose up` and confirm `curl localhost:8000/health` returns `{"sta
 
 ```bash
 bun install
-bun run build           # produces dist/cognee.plugin.js
-bun run link            # symlinks it into ~/.config/opencode/plugin/cognee.js
+bun run build   # -> packages/adapter-opencode/dist/cortex-bridge.plugin.js
+bun run packages/adapter-opencode/dist/install.js   # symlink -> ~/.config/opencode/plugin/cortex-bridge.js
 ```
 
 That is it. OpenCode auto-discovers the file globally, no `opencode.json` edits. Restart opencode.
 
-- Project-only install: `bun run dist/install.js --project` (drops it in `./.opencode/plugin/`).
-- Copy instead of symlink: add `--copy`.
-- Remove: `bun run dist/install.js uninstall`.
+- Project-only install: append `--project` (drops it in `./.opencode/plugin/`).
+- Copy instead of symlink: append `--copy`.
+- Remove: append `uninstall`.
 
-Once published you can also run `bunx @anurag629/opencode-cognee` to link it.
+Once published you can also run `bunx @cortex-bridge/opencode` to link it.
 
 ## Configuration
 
 You can configure the plugin two ways. A config file is recommended, because OpenCode does not load `.env` files into the plugin and shell exports only apply to the exact shell that launched OpenCode.
 
-**Config file (recommended).** Copy `cognee.json.example` to `~/.config/opencode/cognee.json` (global) or `<project>/.opencode/cognee.json` (per repo):
+**Config file (recommended).** Copy `cortex-bridge.json.example` to `~/.config/cortex-bridge/config.json` (global) or `<project>/.cortex-bridge/config.json` (per repo). The legacy `~/.config/opencode/cognee.json` path is still read for continuity:
 
 ```json
 {
@@ -71,7 +71,7 @@ You can configure the plugin two ways. A config file is recommended, because Ope
 }
 ```
 
-**Environment variables.** Same settings, prefixed with `COGNEE_`. Env vars override the file. If you use these, export them in your shell profile (`~/.zshrc`), not just inline, or OpenCode will not see them.
+**Environment variables.** Same settings, prefixed with `CORTEX_` (the legacy `COGNEE_` prefix still works). Env vars override the file. If you use these, export them in your shell profile (`~/.zshrc`), not just inline, or OpenCode will not see them.
 
 Precedence is env var, then project config file, then global config file, then default.
 
@@ -79,14 +79,14 @@ Settings (env name / file key):
 
 | Var | Default | Purpose |
 |---|---|---|
-| `COGNEE_MODE` | `local` | `local` (self-hosted) or `cloud` (Cognee Cloud) |
-| `COGNEE_BASE_URL` | `http://localhost:8000` | server URL |
-| `COGNEE_USERNAME` / `COGNEE_PASSWORD` | - | local login (only if access control is on) |
-| `COGNEE_API_KEY` | - | Cognee Cloud auth |
-| `COGNEE_DATASET` | `oc-mem-<project>` | per-project memory graph |
-| `COGNEE_TOP_K` | `8` | items pulled per recall |
-| `COGNEE_BRIDGE_DEBOUNCE_MS` | `120000` | wait before bridging a session to the graph |
-| `COGNEE_DEBUG` | `false` | verbose logging to stderr |
+| `CORTEX_MODE` | `local` | `local` (self-hosted) or `cloud` (Cognee Cloud) |
+| `CORTEX_BASE_URL` | `http://localhost:8000` | server URL |
+| `CORTEX_USERNAME` / `CORTEX_PASSWORD` | - | local login (only if access control is on) |
+| `CORTEX_API_KEY` | - | Cognee Cloud auth |
+| `CORTEX_DATASET` | `cortex-<project>` | shared memory graph; pin the same value across agents to share |
+| `CORTEX_TOP_K` | `8` | items pulled per recall |
+| `CORTEX_BRIDGE_DEBOUNCE_MS` | `120000` | wait before bridging a session to the graph |
+| `CORTEX_DEBUG` | `false` | verbose logging to stderr |
 
 ## Verify
 
@@ -99,7 +99,7 @@ bun run smoke      # health -> remember -> recall -> improve
 Confirm the plugin itself is connected and pointed at the right server. After OpenCode loads it, inspect the status file it writes:
 
 ```bash
-cat ~/.config/opencode/cognee-status.json
+cat ~/.config/cortex-bridge/status.json
 ```
 
 ```json
@@ -110,7 +110,7 @@ cat ~/.config/opencode/cognee-status.json
   "auth": "api-key",
   "captures": 12,
   "recalls": 5,
-  "configSource": "/Users/you/.config/opencode/cognee.json"
+  "configSource": "/Users/you/.config/cortex-bridge/config.json"
 }
 ```
 

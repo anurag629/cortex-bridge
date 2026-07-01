@@ -17,7 +17,7 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
     options,
   )
   const log = (msg: string, ...a: any[]) => {
-    if (cfg.debug) console.error(`[cognee] ${msg}`, ...a)
+    if (cfg.debug) console.error(`[cortex] ${msg}`, ...a)
   }
   const client = new CogneeClient(cfg, log)
   const buffer = new SessionBuffer(client, cfg.bridgeDebounceMs, log)
@@ -25,14 +25,14 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
   const health = await client.health()
   if (!health) {
     console.error(
-      `[cognee] Cognee server not reachable at ${cfg.baseUrl}. Memory features are disabled until it is up.`,
+      `[cortex] Cognee server not reachable at ${cfg.baseUrl}. Memory features are disabled until it is up.`,
     )
   } else {
     log(`connected to Cognee ${health.version ?? "?"} (mode=${cfg.mode}, dataset=${cfg.dataset})`)
   }
   await client.ensureAuth()
 
-  // Snapshot file the user can inspect: ~/.config/opencode/cognee-status.json.
+  // Snapshot file the user can inspect: ~/.config/cortex-bridge/status.json.
   // OpenCode does not surface plugin logs, so this is the verification surface.
   const status = new Status({
     connected: !!health,
@@ -47,7 +47,7 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
 
   // --- AI-callable tools (model-driven memory) ---------------------------------
 
-  const cognee_recall: ToolDefinition = {
+  const cortex_recall: ToolDefinition = {
     description:
       "Search your persistent project memory (decisions, past code changes, prior Q&A, and feedback) for anything relevant. Use it when you might be missing context established earlier or in a previous session.",
     args: {
@@ -67,7 +67,7 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
     },
   }
 
-  const cognee_remember: ToolDefinition = {
+  const cortex_remember: ToolDefinition = {
     description:
       "Save an important fact, decision, or lesson to persistent memory so it is available in future sessions for this project.",
     args: {
@@ -81,9 +81,9 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
     },
   }
 
-  const cognee_feedback: ToolDefinition = {
+  const cortex_feedback: ToolDefinition = {
     description:
-      "Record feedback on a past answer so future recommendations improve. Use the qa_id from a prior cognee_recall result. Positive scores reinforce that approach; negative scores discourage it.",
+      "Record feedback on a past answer so future recommendations improve. Use the qa_id from a prior cortex_recall result. Positive scores reinforce that approach; negative scores discourage it.",
     args: {
       qa_id: {
         type: "string",
@@ -108,7 +108,7 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
     },
   }
 
-  const cognee_optimize: ToolDefinition = {
+  const cortex_optimize: ToolDefinition = {
     description:
       "Optimize this project's memory graph: consolidate related facts, prune stale nodes, and reweight connections from accumulated feedback. Run it after a lot of new activity or several feedback entries.",
     args: {},
@@ -118,7 +118,7 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
     },
   }
 
-  const cognee_forget: ToolDefinition = {
+  const cortex_forget: ToolDefinition = {
     description:
       "Delete stored memory for this project. Use only when the user explicitly asks to forget or reset memory. By default clears this project's knowledge graph and cached entries; raw ingested files are kept.",
     args: {
@@ -164,7 +164,7 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
   // --- hooks ------------------------------------------------------------------
 
   const hooks: Hooks = {
-    tool: { cognee_recall, cognee_remember, cognee_feedback, cognee_optimize, cognee_forget },
+    tool: { cortex_recall, cortex_remember, cortex_feedback, cortex_optimize, cortex_forget },
 
     // Auto-recall: inject relevant memory before the model answers.
     "chat.message": async (inp, out) => {
@@ -201,7 +201,7 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
     // Auto-capture: record each agent action as a cheap trace entry.
     "tool.execute.after": async (inp, out) => {
       try {
-        if (inp.tool.startsWith("cognee_")) return // never capture our own tools
+        if (inp.tool.startsWith("cortex_")) return // never capture our own tools
         const res = await client.rememberEntry(
           traceFromTool(inp, out, cfg.captureToolOutput),
           buffer.cogneeSessionId(inp.sessionID),
@@ -265,5 +265,5 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
   return hooks
 }
 
-const plugin: PluginModule = { id: "cognee", server }
+const plugin: PluginModule = { id: "cortex-bridge", server }
 export default plugin

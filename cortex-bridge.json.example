@@ -1,0 +1,14 @@
+{
+  "_comment": "Copy this to ~/.config/cortex-bridge/config.json (global) or <project>/.cortex-bridge/config.json (per repo). Adapters read it directly, so you do NOT need shell exports. Env vars still win if set. Delete the _comment lines.",
+
+  "mode": "cloud",
+  "baseUrl": "https://your-instance.cognee.ai",
+  "apiKey": "ck_your_api_key_here",
+
+  "dataset": "team-mesh",
+  "topK": 8,
+  "debug": false,
+
+  "_localExample": "For self-hosted: set mode=local, baseUrl=http://localhost:8000, and either username+password or nothing if access control is off. Pin the SAME dataset across agents to share memory.",
+  "_legacyPaths": "The legacy locations ~/.config/opencode/cognee.json and <project>/.opencode/cognee.json are still read for continuity."
+}
