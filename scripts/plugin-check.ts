@@ -32,6 +32,7 @@ check("registers cortex_remember", toolNames.includes("cortex_remember"))
 check("registers cortex_feedback", toolNames.includes("cortex_feedback"))
 check("registers cortex_optimize", toolNames.includes("cortex_optimize"))
 check("registers cortex_forget", toolNames.includes("cortex_forget"))
+check("registers cortex_handoff", toolNames.includes("cortex_handoff"))
 
 for (const h of [
   "chat.message",
