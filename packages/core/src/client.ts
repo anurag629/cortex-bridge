@@ -217,14 +217,55 @@ export class CogneeClient {
   }
 
   // Build the knowledge graph from a dataset's ingested data (the full
-  // extract-cognify-load pipeline). Heavy: runs LLM extraction. Backgrounded.
+  // extract-cognify-load pipeline). Heavy: runs LLM extraction. Backgrounded by
+  // default; pass { wait: true } to block until the graph is built.
   // Available on self-hosted and cloud. Note: camelCase fields.
-  async cognify(datasets?: string[]): Promise<void> {
+  async cognify(datasets?: string[], opts?: { wait?: boolean }): Promise<void> {
     const body: CognifyRequest = {
       datasets: datasets ?? [this.cfg.dataset],
-      runInBackground: true,
+      runInBackground: !opts?.wait,
     }
-    await this.req("POST", "/cognify", body, { retries: 0 })
+    await this.req("POST", "/cognify", body, {
+      retries: 0,
+      timeoutMs: opts?.wait ? 300_000 : this.cfg.requestTimeoutMs,
+    })
+  }
+
+  // Write text straight into the knowledge graph (add + cognify) so it is
+  // recallable by ANY agent or session on this dataset. This is the durable
+  // cross-agent path: the session cache (rememberEntry) is same-session only,
+  // and improve() only distills gated/feedback content, not raw captures.
+  // node_set tags provenance (e.g. agent + repo). Heavy: cognify runs the LLM.
+  async ingestToGraph(
+    text: string,
+    opts?: { nodeSet?: string[]; filename?: string; wait?: boolean },
+  ): Promise<void> {
+    await this.ensureAuth()
+    const form = new FormData()
+    form.append("data", new Blob([text], { type: "text/plain" }), opts?.filename ?? "note.md")
+    form.append("datasetName", this.cfg.dataset)
+    for (const tag of opts?.nodeSet ?? []) form.append("node_set", tag)
+    const ac = new AbortController()
+    const timer = setTimeout(() => ac.abort(), this.cfg.requestTimeoutMs)
+    try {
+      // add is multipart: let fetch set the boundary (no explicit Content-Type).
+      const res = await fetch(this.url("/add"), {
+        method: "POST",
+        headers: this.authHeaders(),
+        body: form,
+        signal: ac.signal,
+      })
+      if (!res.ok) {
+        this.log(`ingest add failed: ${res.status}`)
+        return
+      }
+    } catch (e) {
+      this.log(`ingest add error: ${String(e)}`)
+      return
+    } finally {
+      clearTimeout(timer)
+    }
+    await this.cognify([this.cfg.dataset], { wait: opts?.wait })
   }
 
   // Optimize the graph: enrich, prune stale nodes, reweight edges. Self-hosted
