@@ -10,6 +10,16 @@
         "typescript": "^5.6.3",
       },
     },
+    "packages/adapter-claude-code": {
+      "name": "@cortex-bridge/claude-code",
+      "version": "0.1.0",
+      "bin": {
+        "cortex-bridge-claude-code": "./dist/install.js",
+      },
+      "dependencies": {
+        "@cortex-bridge/core": "workspace:*",
+      },
+    },
     "packages/adapter-opencode": {
       "name": "@cortex-bridge/opencode",
       "version": "0.1.0",
@@ -26,6 +36,8 @@
     },
   },
   "packages": {
+    "@cortex-bridge/claude-code": ["@cortex-bridge/claude-code@workspace:packages/adapter-claude-code"],
+
     "@cortex-bridge/core": ["@cortex-bridge/core@workspace:packages/core"],
 
     "@cortex-bridge/opencode": ["@cortex-bridge/opencode@workspace:packages/adapter-opencode"],
