@@ -8,11 +8,15 @@ Built for the WeMakeDevs x Cognee hackathon. Runs fully local (self-hosted Cogne
 
 This repo is a workspace:
 
-- `packages/core` is the runtime-agnostic memory engine. It owns the full Cognee lifecycle (remember, recall, improve/memify, forget) and knows nothing about any specific agent.
+- `packages/core` is the runtime-agnostic memory engine. It owns the full Cognee lifecycle (remember, recall, improve/memify, forget) and the shared hook runtime, and knows nothing about any specific agent.
 - `packages/adapter-opencode` is the OpenCode adapter, the reference native integration documented below.
-- More adapters (Claude Code, and MCP for Cursor, Copilot, Codex) sit alongside it, each one thin because the core does the work.
+- `packages/adapter-claude-code`, `packages/adapter-codex`, and `packages/adapter-kimi` wire the same core into Claude Code, Codex CLI, and Kimi Code CLI. Those three speak the same lifecycle-hook contract, so they share one hook binary; each adapter is basically an installer plus a label.
 
-Cognee ships its own single-agent plugins, including a basic OpenCode one. Cortex Bridge is the deeper cross-agent take: one shared graph across a fleet of agents, not memory trapped inside one tool.
+Four agents, one memory. A decision recorded in any of them is recalled in the others, because they all read and write the same Cognee dataset. Cognee ships its own single-agent plugins, including a basic OpenCode one. Cortex Bridge is the deeper cross-agent take: one shared graph across a fleet of agents, not memory trapped inside one tool.
+
+### How the sharing actually works
+
+Every agent on a repo derives the same session id from the dataset (`cortex-<dataset>`) and reads and writes Cognee's session cache under it. That cache is the reliable cross-agent path: a write shows up in another agent instantly, with no graph build in the way. Session summaries also fold into the knowledge graph as durable handoffs, but the day-to-day "you already know what I just did" comes from the shared session. Pin the same `CORTEX_DATASET` across your agents and they are on the same memory.
 
 ## How the OpenCode adapter works
 
@@ -56,6 +60,27 @@ That is it. OpenCode auto-discovers the file globally, no `opencode.json` edits.
 
 Once published you can also run `bunx @cortex-bridge/opencode` to link it.
 
+## Add the other agents
+
+Claude Code, Codex, and Kimi drive the same shared memory through lifecycle hooks. Build the adapters once, then run the installer for each agent you use. Point them all at the same server and dataset and they share memory with OpenCode and with each other.
+
+```bash
+bun run build:adapters   # builds the Claude Code, Codex, and Kimi hook binaries
+
+bun run packages/adapter-claude-code/dist/install.js   # -> ~/.claude/settings.json
+bun run packages/adapter-codex/dist/install.js         # -> ~/.codex/hooks.json
+bun run packages/adapter-kimi/dist/install.js          # -> ~/.kimi/config.toml
+```
+
+Each installer is idempotent (re-running never duplicates) and each takes `uninstall` to remove its hooks cleanly. What they wire in is the same three hooks: recall shared memory on prompt submit, capture tool calls, and fold the final answer into memory when a turn ends.
+
+Two agent-specific notes:
+
+- Codex skips new hooks until you trust them. Run `/hooks` inside Codex to review and trust them, or start it once with `--dangerously-bypass-hook-trust`.
+- The Kimi installer appends a small block to `~/.kimi/config.toml` between sentinel comments and leaves the rest of your config untouched.
+
+For sharing, set the same `CORTEX_DATASET` (and `CORTEX_BASE_URL`) for every agent, in your shell profile or the config file below.
+
 ## Configuration
 
 You can configure the plugin two ways. A config file is recommended, because OpenCode does not load `.env` files into the plugin and shell exports only apply to the exact shell that launched OpenCode.
@@ -93,8 +118,12 @@ Settings (env name / file key):
 Check the HTTP path against your server:
 
 ```bash
-bun run smoke      # health -> remember -> recall -> improve
+bun run smoke       # health -> remember -> recall -> improve
+bun run doctor      # two agents, one dataset: A writes, B recalls it
+bun run allagents   # the full matrix across OpenCode, Claude Code, Codex, and Kimi
 ```
+
+`allagents` records a decision "from" each of the four agents into the shared session, then drives the real Codex and Kimi hook binaries (and the Claude Code one) to recall a decision a different agent made. It passes only if every write crosses over to another agent.
 
 Confirm the plugin itself is connected and pointed at the right server. After OpenCode loads it, inspect the status file it writes:
 
