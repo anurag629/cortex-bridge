@@ -7,7 +7,15 @@
 //   recall   (UserPromptSubmit) -> inject shared memory into Claude's context
 //   capture  (PostToolUse)      -> record the tool call as a trace
 //   stop     (Stop)             -> write a handoff into the shared graph
-import { CogneeClient, clip, formatRecall, resolveConfig, type MemoryEntry } from "@cortex-bridge/core"
+import {
+  CogneeClient,
+  clip,
+  formatRecall,
+  qaEntry,
+  resolveConfig,
+  sharedSessionId,
+  type MemoryEntry,
+} from "@cortex-bridge/core"
 
 const AGENT = "claude-code"
 
@@ -20,14 +28,6 @@ async function readStdin(): Promise<any> {
   } catch {
     return {}
   }
-}
-
-// Claude Code passes its host session id under one of several names. We turn it
-// into a stable Cortex Bridge session id so recall works across a conversation.
-function sessionKey(p: any): string {
-  const id =
-    p.session_id ?? p.sessionId ?? p.conversation_id ?? p.transcript?.session_id ?? "adhoc"
-  return `claude-${String(id).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64)}`
 }
 
 function connect(cwd: string) {
@@ -45,19 +45,20 @@ async function recall(p: any): Promise<void> {
   const { cfg, client } = connect(cwd)
   const items = await client.recall({
     query: prompt,
-    session_id: sessionKey(p),
-    scope: "graph",
-    search_type: "CHUNKS", // raw source text is fast and fits a 15s hook budget
+    session_id: sharedSessionId(cfg.dataset),
+    scope: "session", // the shared session cache is the reliable cross-agent path
     top_k: Math.max(cfg.topK, 8),
     only_context: true,
   })
   const mem = formatRecall(items)
+  if (process.env.CORTEX_HOOK_DEBUG)
+    console.error(`[hook] recalled ${items.length} item(s); context ${mem.length} chars`)
   if (!mem) return
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: {
         hookEventName: "UserPromptSubmit",
-        additionalContext: `# Shared memory (Cortex Bridge)\nContext recalled from this project's cross-agent memory graph:\n\n${mem}`,
+        additionalContext: `# Shared memory (Cortex Bridge)\nContext recalled from this project's cross-agent memory:\n\n${mem}`,
         systemMessage: `Cortex Bridge: recalled ${items.length} item(s) from shared memory`,
       },
     }),
@@ -66,7 +67,7 @@ async function recall(p: any): Promise<void> {
 
 // PostToolUse: capture the tool call as a trace in the session cache.
 async function capture(p: any): Promise<void> {
-  const { client } = connect(String(p.cwd ?? process.cwd()))
+  const { cfg, client } = connect(String(p.cwd ?? process.cwd()))
   const out = p.tool_output ?? p.tool_response ?? ""
   const isErr = Boolean(p.error) || Boolean(out && typeof out === "object" && out.is_error)
   const entry: MemoryEntry = {
@@ -77,7 +78,7 @@ async function capture(p: any): Promise<void> {
     method_return_value: clip(typeof out === "string" ? out : JSON.stringify(out ?? ""), 4000),
     error_message: String(p.error ?? ""),
   }
-  await client.rememberEntry(entry, sessionKey(p))
+  await client.rememberEntry(entry, sharedSessionId(cfg.dataset))
 }
 
 // Stop: write a handoff of what Claude just did straight into the shared graph,
@@ -86,26 +87,35 @@ async function stop(p: any): Promise<void> {
   const answer = String(p.assistant_message ?? p.message ?? "").trim()
   if (!answer) return
   const { cfg, client } = connect(String(p.cwd ?? process.cwd()))
-  const body = [
-    `# Handoff from ${AGENT}`,
-    `Project: ${cfg.dataset}`,
-    "",
-    "## What Claude Code just did",
-    clip(answer, 1500),
-  ].join("\n")
-  await client.ingestToGraph(body, {
-    nodeSet: [`agent:${AGENT}`, `repo:${cfg.dataset}`, "handoff"],
-    filename: `handoff-claude-${sessionKey(p)}.md`,
-  })
+  const sid = sharedSessionId(cfg.dataset)
+  // Reliable: capture Claude's final answer into the shared session cache so any
+  // agent recalls it. Durable, best effort: also fold it into the graph.
+  await client.rememberEntry(
+    qaEntry("Claude Code session summary", clip(answer, 1500), "claude-code"),
+    sid,
+  )
+  await client.ingestToGraph(
+    [`# Handoff from ${AGENT}`, `Project: ${cfg.dataset}`, "", clip(answer, 1500)].join("\n"),
+    {
+      nodeSet: [`agent:${AGENT}`, `repo:${cfg.dataset}`, "handoff"],
+      filename: `handoff-claude-${Date.now()}.md`,
+    },
+  )
 }
 
+const DEBUG = Boolean(process.env.CORTEX_HOOK_DEBUG)
 const mode = process.argv[2] ?? ""
 const payload = await readStdin()
+if (DEBUG)
+  console.error(
+    `[hook] mode=${mode} prompt=${JSON.stringify(payload?.prompt)} dataset=${process.env.CORTEX_DATASET} base=${process.env.CORTEX_BASE_URL}`,
+  )
 try {
   if (mode === "recall") await recall(payload)
   else if (mode === "capture") await capture(payload)
   else if (mode === "stop") await stop(payload)
-} catch {
-  // A hook must never break the host. Fail silent.
+} catch (e) {
+  if (DEBUG) console.error("[hook] error:", e)
+  // A hook must never break the host. Fail silent otherwise.
 }
 process.exit(0)
