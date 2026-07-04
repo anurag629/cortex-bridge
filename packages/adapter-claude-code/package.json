@@ -1,0 +1,19 @@
+{
+  "name": "@cortex-bridge/claude-code",
+  "version": "0.1.0",
+  "description": "Claude Code adapter for Cortex Bridge: shared cross-agent memory backed by Cognee.",
+  "type": "module",
+  "license": "MIT",
+  "author": "anurag629",
+  "keywords": ["claude-code", "cognee", "memory", "agent", "ai", "cortex-bridge"],
+  "bin": {
+    "cortex-bridge-claude-code": "./dist/install.js"
+  },
+  "files": ["dist", "README.md"],
+  "dependencies": {
+    "@cortex-bridge/core": "workspace:*"
+  },
+  "scripts": {
+    "build": "bun run build.ts"
+  }
+}
