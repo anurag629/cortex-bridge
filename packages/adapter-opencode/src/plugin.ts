@@ -1,5 +1,6 @@
 import {
   CogneeClient,
+  clip,
   formatRecall,
   qaEntry,
   resolveConfig,
@@ -139,6 +140,23 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
     },
   }
 
+  const cortex_handoff: ToolDefinition = {
+    description:
+      "Write a handoff of the current session into shared memory so another agent, or a later session in any tool, can pick up where you left off. Call it when you finish a task or before switching tools.",
+    args: {
+      summary: {
+        type: "string",
+        description: "Optional extra summary or next-step note to include in the handoff",
+      },
+    },
+    async execute(args, ctx) {
+      const extra = String(args?.summary ?? "").trim()
+      if (extra) note(ctx.sessionID, `- note: ${extra}`)
+      const wrote = await ingestHandoff(ctx.sessionID)
+      return wrote ? "Handoff written to shared memory." : "Nothing to hand off yet."
+    },
+  }
+
   // --- helpers ----------------------------------------------------------------
 
   // On idle, pair the user's question with the assistant's reply and store it.
@@ -159,12 +177,56 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
     if (!answer) return
     await client.rememberEntry(qaEntry(question, answer), buffer.cogneeSessionId(sessionID))
     buffer.markDirty(sessionID)
+    note(sessionID, `- Q: ${clip(question, 200)}\n  A: ${clip(answer, 400)}`)
+  }
+
+  // Handoffs are the durable cross-agent unit: a compact record of what a
+  // session did, written straight into the shared graph (not the session cache,
+  // which stays same-session). Any other agent recalls them via the graph.
+  const AGENT = "opencode"
+  const handoffLines = new Map<string, string[]>()
+  function note(sessionID: string, line: string): void {
+    const arr = handoffLines.get(sessionID) ?? []
+    arr.push(line)
+    handoffLines.set(sessionID, arr)
+  }
+  async function ingestHandoff(sessionID: string): Promise<boolean> {
+    const lines = handoffLines.get(sessionID)
+    if (!lines || lines.length === 0) return false
+    handoffLines.delete(sessionID)
+    const body = [
+      `# Handoff from ${AGENT}`,
+      `Project: ${cfg.dataset}`,
+      "",
+      "## What happened this session",
+      ...lines,
+    ].join("\n")
+    try {
+      await client.ingestToGraph(body, {
+        nodeSet: [`agent:${AGENT}`, `repo:${cfg.dataset}`, "handoff"],
+        filename: `handoff-${sessionID}-${uid("h")}.md`,
+      })
+      status.bump("bridges")
+      log(`handoff written to the shared graph (${lines.length} note(s))`)
+      return true
+    } catch (e) {
+      log(`handoff ingest failed: ${String(e)}`)
+      status.bump("errors", { lastError: String(e) })
+      return false
+    }
   }
 
   // --- hooks ------------------------------------------------------------------
 
   const hooks: Hooks = {
-    tool: { cortex_recall, cortex_remember, cortex_feedback, cortex_optimize, cortex_forget },
+    tool: {
+      cortex_recall,
+      cortex_remember,
+      cortex_feedback,
+      cortex_optimize,
+      cortex_forget,
+      cortex_handoff,
+    },
 
     // Auto-recall: inject relevant memory before the model answers.
     "chat.message": async (inp, out) => {
@@ -207,6 +269,9 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
           buffer.cogneeSessionId(inp.sessionID),
         )
         buffer.markDirty(inp.sessionID)
+        if (/^(edit|write|multiedit|patch)$/i.test(inp.tool)) {
+          note(inp.sessionID, `- ${inp.tool}: ${clip(out.title || out.output || "", 100)}`)
+        }
         if (res) status.bump("captures", { lastCapture: inp.tool })
         else status.bump("errors", { lastError: `capture of ${inp.tool} returned no result` })
       } catch (e) {
@@ -255,6 +320,7 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
     // On shutdown, flush any pending sessions into the graph.
     dispose: async () => {
       try {
+        for (const sid of [...handoffLines.keys()]) await ingestHandoff(sid)
         await buffer.flushAll()
       } catch (e) {
         log(`dispose error: ${String(e)}`)
