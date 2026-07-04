@@ -1,60 +1,46 @@
-// Cross-agent canary. Proves the whole premise of Cortex Bridge: a write by one
-// agent is recalled by a DIFFERENT agent, on the same pinned dataset, through
-// the shared Cognee graph. Run it before any cross-agent demo.
+// Cross-agent canary. Proves the premise of Cortex Bridge: a write by one agent
+// is recalled by a different agent, on the same pinned dataset, through the
+// shared session cache. Run it before any cross-agent demo.
 //
 //   CORTEX_MODE=local CORTEX_BASE_URL=http://localhost:8000 bun run doctor
 //
-// It simulates two agents as two clients with different sessions but the SAME
-// explicitly-pinned dataset. Agent A writes a handoff straight into the graph
-// (add + cognify, the durable cross-agent path); agent B recalls it.
-import { resolveConfig, CogneeClient } from "@cortex-bridge/core"
+// Two agents = two clients sharing one session id (derived from the dataset).
+// Agent A captures a decision; agent B recalls it.
+import { CogneeClient, qaEntry, resolveConfig, sharedSessionId } from "@cortex-bridge/core"
 
-const dataset = process.env.CORTEX_DATASET ?? process.env.COGNEE_DATASET ?? "cortex-doctor"
+const dataset = process.env.CORTEX_DATASET ?? "cortex-doctor"
+process.env.CORTEX_DATASET = dataset
 const cfg = resolveConfig(undefined, { dataset })
 const log = (m: string, ...a: any[]) => console.log(`[doctor] ${m}`, ...a)
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-const stamp = Date.now()
 
+const shared = sharedSessionId(cfg.dataset)
+const marker = `ZORP-${Date.now()}`
 const agentA = new CogneeClient(cfg, log)
 const agentB = new CogneeClient(cfg, log)
-const sessionB = `agentB-${stamp}`
 
-// A distinctive marker only agent A writes. Agent B must surface it.
-const marker = `ZORP-${stamp}`
-const handoff = [
-  "# Handoff (from agent A)",
-  "Decision: the auth module uses jose (not jsonwebtoken) because the project is ESM.",
-  `marker: ${marker}`,
-  "Next step: wire the /refresh endpoint. Do not touch auth.ts.",
-].join("\n")
-
-const health = await agentA.health()
-if (!health) {
+if (!(await agentA.health())) {
   console.error(`[doctor] Cognee not reachable at ${cfg.baseUrl}`)
   process.exit(1)
 }
-log(`server ${health.version ?? "?"} healthy; dataset="${cfg.dataset}" pinned for both agents`)
+log(`server ${(await agentA.health())?.version ?? "?"} healthy; shared session "${shared}"`)
 
-// 1. Agent A writes a handoff straight into the shared graph, tagged with provenance.
-log("agent A is ingesting a handoff into the shared graph (add + cognify)...")
-await agentA.ingestToGraph(handoff, {
-  nodeSet: ["agent:agentA", "repo:doctor", "handoff"],
-  filename: `handoff-${stamp}.md`,
-  wait: true,
-})
-log("agent A's handoff is in the graph")
+// 1) Agent A captures a decision into the shared session cache.
+await agentA.rememberEntry(
+  qaEntry("Which JWT library and why?", `chose jose over jsonwebtoken because ESM. ${marker}`, "auth"),
+  shared,
+)
+log("agent A captured a decision")
 
-// 2. Agent B, a different session, recalls from the same dataset. Poll briefly
-//    for eventual consistency of the vector index after cognify.
+// 2) Agent B, a different client, recalls it from the same shared session.
 let found = false
 let lastCount = 0
-for (let attempt = 1; attempt <= 10 && !found; attempt++) {
+for (let attempt = 1; attempt <= 5 && !found; attempt++) {
   const items = await agentB.recall({
-    query: `auth jwt library decision ${marker}`,
-    session_id: sessionB,
-    scope: "graph",
-    search_type: "CHUNKS",
-    top_k: 10,
+    query: "jwt library jose decision",
+    session_id: shared,
+    scope: "session",
+    top_k: 8,
     only_context: true,
   })
   lastCount = items.length
@@ -62,14 +48,14 @@ for (let attempt = 1; attempt <= 10 && !found; attempt++) {
     found = true
     break
   }
-  await sleep(3000)
+  await sleep(2000)
 }
 
 if (found) {
-  console.log(`\nDOCTOR PASS: agent B (session ${sessionB}) recalled agent A's handoff via the shared graph.`)
+  console.log("\nDOCTOR PASS: agent B recalled agent A's write on the shared session.")
   console.log(`  one dataset ("${cfg.dataset}"), two agents, memory crossed over.`)
   process.exit(0)
 }
 console.log(`\nDOCTOR FAIL: agent B did not recall A's marker (last recall returned ${lastCount} item(s)).`)
-console.log("  The graph build (cognify) needs a reachable LLM: self-hosted needs a local model, cloud needs the tenant LLM.")
+console.log("  Check the server is up and CACHING=true (the session cache must be enabled).")
 process.exit(1)

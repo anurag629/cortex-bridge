@@ -28,3 +28,11 @@ export function uid(prefix = "cognee"): string {
   const rnd = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(16).slice(2)
   return `${prefix}-${rnd}`
 }
+
+// The session id every agent shares for a given dataset (repo). Pinning the same
+// dataset means every agent reads and writes the same session cache, so a
+// capture in one tool is recalled in another without depending on a graph build.
+// Derived only from the dataset, so all adapters agree.
+export function sharedSessionId(dataset: string): string {
+  return `cortex-${slug(dataset)}`
+}

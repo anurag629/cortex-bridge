@@ -5,6 +5,7 @@ import {
   qaEntry,
   resolveConfig,
   SessionBuffer,
+  sharedSessionId,
   Status,
   traceFromTool,
   uid,
@@ -21,7 +22,7 @@ const server = async (input: PluginInput, options?: Record<string, any>): Promis
     if (cfg.debug) console.error(`[cortex] ${msg}`, ...a)
   }
   const client = new CogneeClient(cfg, log)
-  const buffer = new SessionBuffer(client, cfg.bridgeDebounceMs, log)
+  const buffer = new SessionBuffer(client, cfg.bridgeDebounceMs, log, sharedSessionId(cfg.dataset))
 
   const health = await client.health()
   if (!health) {

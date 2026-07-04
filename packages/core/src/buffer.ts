@@ -3,7 +3,6 @@ import type { CogneeClient } from "./client"
 type Logger = (msg: string, ...args: any[]) => void
 
 interface SessionState {
-  cogneeSessionId: string // "oc-" + opencode sessionID
   openQuestion?: string
   openMessageID?: string
   lastBridge: number
@@ -11,9 +10,11 @@ interface SessionState {
   bridgeTimer?: ReturnType<typeof setTimeout>
 }
 
-// Tracks per-session state and schedules the expensive bridge (improve) so
-// capture stays cheap and the graph still gets built. Bridging is debounced on
-// idle and forced on compaction / dispose.
+// Tracks per-host-session local state (the open Q&A, dirty flag, debounce) and
+// hands out the SHARED Cognee session id so every agent on this dataset reads
+// and writes one session cache. That is what makes capture in one tool recall
+// in another, without waiting on a graph build. Bridging (improve) is debounced
+// on idle and forced on compaction / dispose.
 export class SessionBuffer {
   private sessions = new Map<string, SessionState>()
 
@@ -21,19 +22,22 @@ export class SessionBuffer {
     private client: CogneeClient,
     private debounceMs: number,
     private log: Logger,
+    private sharedSessionId: string,
   ) {}
 
   private get(sessionID: string): SessionState {
     let s = this.sessions.get(sessionID)
     if (!s) {
-      s = { cogneeSessionId: `oc-${sessionID}`, lastBridge: 0, dirty: false }
+      s = { lastBridge: 0, dirty: false }
       this.sessions.set(sessionID, s)
     }
     return s
   }
 
-  cogneeSessionId(sessionID: string): string {
-    return this.get(sessionID).cogneeSessionId
+  // The Cognee session id is shared per dataset (repo), not per host session, so
+  // memory crosses agents and sessions through one cache.
+  cogneeSessionId(_sessionID?: string): string {
+    return this.sharedSessionId
   }
 
   markDirty(sessionID: string): void {
@@ -75,8 +79,8 @@ export class SessionBuffer {
     if (!s.dirty && !force) return
     s.dirty = false
     s.lastBridge = Date.now()
-    this.log(`bridging ${s.cogneeSessionId} into graph`)
-    await this.client.improve([s.cogneeSessionId])
+    this.log(`bridging ${this.sharedSessionId} into graph`)
+    await this.client.improve([this.sharedSessionId])
   }
 
   async flushAll(): Promise<void> {
