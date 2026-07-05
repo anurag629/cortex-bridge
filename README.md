@@ -20,17 +20,41 @@ The wizard detects your agents, asks what to wire up and where, then builds, wri
 
 ## See it work
 
-A decision recorded by each agent, then recalled by a different one. It passes only if every write crosses over.
+### One command sets it up
 
-![bun run allagents printing ALL-AGENTS PASS across OpenCode, Claude Code, Codex, and Kimi](assets/images/allagents-pass.png)
+`bun run setup` detects your agents, wires each one, writes the config, and verifies the link with `doctor`, all in a single flow.
 
-The Cognee memory graph behind it, with the datasets, session handoffs, and documents Cortex Bridge wrote.
+![bun run setup wiring the four agents and ending with DOCTOR PASS](assets/images/bun-run-setup.png)
 
-![The Cognee memory graph, showing datasets and session handoff nodes](assets/images/cognee-graph.png)
+### Four agents, one memory
 
-The quick two-agent canary: agent B recalls agent A's write on the shared session.
+The real thing: OpenCode, Claude Code, Codex, and Kimi all working on one scientific calculator repo and sharing memory. A decision made once is known by every agent.
 
-![bun run doctor printing DOCTOR PASS](assets/images/doctor-pass.png)
+OpenCode implements `tan()` following the project's conventions (radians, raise ValueError), which live in the shared memory.
+
+![OpenCode implementing tan() following the shared conventions](assets/images/opencode-add-tan.png)
+
+Claude Code, in the same repo, explains those conventions and points to Cortex Bridge as the canonical record.
+
+![Claude Code explaining the conventions and crediting Cortex Bridge](assets/images/claude-code.png)
+
+Codex knows the parsing algorithm the team chose, the shunting-yard algorithm.
+
+![Codex recalling the chosen parsing algorithm](assets/images/codex.png)
+
+Kimi summarizes every decision the project has made, and credits Cortex Bridge for the cross-agent recall.
+
+![Kimi summarizing the shared decisions](assets/images/kimi.png)
+
+### Under the hood
+
+The Cognee memory graph the agents write to: datasets, sessions, documents, and handoffs.
+
+![The Cognee memory graph](assets/images/cognee-graph.png)
+
+And the automated proof, four agents each recalling another's write on one dataset.
+
+![bun run allagents printing ALL-AGENTS PASS](assets/images/allagents-pass.png)
 
 This repo is a workspace:
 
