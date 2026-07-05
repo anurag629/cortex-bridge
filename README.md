@@ -30,9 +30,13 @@ Four agents, one memory. A decision recorded in any of them is recalled in the o
 
 Every agent on a repo derives the same session id from the dataset (`cortex-<dataset>`) and reads and writes Cognee's session cache under it. That cache is the reliable cross-agent path: a write shows up in another agent instantly, with no graph build in the way. Session summaries also fold into the knowledge graph as durable handoffs, but the day-to-day "you already know what I just did" comes from the shared session. Pin the same `CORTEX_DATASET` across your agents and they are on the same memory.
 
-## How the OpenCode adapter works
+## How the adapters work
 
-The adapter speaks HTTP to a running Cognee server through the core. Capture is cheap (writes to Cognee's session cache, no graph build); the expensive graph build runs once, in the background, at session boundaries.
+All four adapters talk to Cognee through the same core over HTTP. Capture is cheap (it writes to Cognee's session cache, no graph build), and the expensive graph build runs once, in the background, at session boundaries. OpenCode gets the deepest integration because its plugin API is the richest. The three CLI agents share one simpler hook contract.
+
+### OpenCode (native plugin)
+
+It hooks into the plugin API, and it can also expose tools the model calls directly.
 
 | OpenCode hook | What happens | Cognee call |
 |---|---|---|
@@ -43,6 +47,16 @@ The adapter speaks HTTP to a running Cognee server through the core. Capture is 
 | `dispose` | flush pending sessions into the graph | `POST /improve` |
 
 It also exposes six tools the model can call directly: `cortex_recall`, `cortex_remember`, `cortex_feedback`, `cortex_optimize` (run `memify` to consolidate and reweight the graph), `cortex_forget` (prune stored memory), and `cortex_handoff` (write a handoff into shared memory so another agent, or a later session in any tool, can resume). Together these exercise the full Cognee lifecycle: remember, recall, feedback, improve/memify, and forget.
+
+### Claude Code, Codex, and Kimi (shared hook binary)
+
+These three speak the same lifecycle-hook contract, so one built hook binary drives all of them. It is three events, and no model-callable tools.
+
+| Lifecycle hook | What happens | Cognee call |
+|---|---|---|
+| `UserPromptSubmit` | recall shared memory and inject it before the model answers | `POST /recall` |
+| `PostToolUse` | record the tool call as a trace | `POST /remember/entry` |
+| `Stop` | fold the final answer into shared memory, then a durable handoff into the graph | `POST /remember/entry`, `POST /add`, `POST /cognify` |
 
 ## Server prerequisites
 
