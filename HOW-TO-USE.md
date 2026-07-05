@@ -4,6 +4,24 @@ This is the step by step guide to get shared memory running across your coding a
 
 The whole idea comes down to two settings that must match across your agents: the same Cognee server, and the same `dataset` name. Set those and they share memory. Everything below is wiring that up.
 
+## The quick way: one command
+
+If you have a Cognee server ready (step 1 below covers getting one), the fastest path is the interactive wizard:
+
+```bash
+bun run setup
+```
+
+It detects which agents you have, asks which to wire up and where, asks your server and dataset, then builds, writes the config, installs each adapter, checks the server, and offers to verify. You just pick options. To pull everything back out later:
+
+```bash
+bun run remove
+```
+
+That strips the Cortex Bridge hooks from every agent and deletes its config, leaving the rest of each agent's own settings untouched. Add `-y` to skip the confirmation.
+
+The rest of this guide is the manual route, useful if you want to do it by hand or understand what the wizard does.
+
 ## What you need
 
 - [Bun](https://bun.sh), a recent version (1.1 or newer), on your PATH. The agent hooks call `bun`, so the agent's own process has to find it too, not just your terminal.

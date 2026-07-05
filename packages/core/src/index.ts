@@ -3,7 +3,7 @@
 // Cognee's HTTP API directly.
 export * from "./types"
 export { CogneeClient } from "./client"
-export { resolveConfig } from "./config"
+export { resolveConfig, cortexConfigPath } from "./config"
 export type { CogneeConfig, CogneeMode } from "./config"
 export { SessionBuffer } from "./buffer"
 export { qaEntry, traceFromTool } from "./capture"

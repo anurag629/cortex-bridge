@@ -6,6 +6,18 @@ Most AI coding agents forget everything between sessions, and none of them share
 
 Built for the WeMakeDevs x Cognee hackathon. Runs fully local (self-hosted Cognee on Ollama, no external API) with a one-flag toggle to Cognee Cloud.
 
+## Quick start
+
+Point it at a Cognee server (Cloud, or self-hosted with `CACHING=true`), then run the interactive setup:
+
+```bash
+git clone https://github.com/anurag629/cortex-bridge
+cd cortex-bridge
+bun run setup
+```
+
+The wizard detects your agents, asks what to wire up and where, then builds, writes the config, installs each adapter, checks the server, and offers to verify. `bun run remove` pulls it all back out. Prefer to do it by hand? See [HOW-TO-USE.md](HOW-TO-USE.md) for the manual route and the full walkthrough.
+
 This repo is a workspace:
 
 - `packages/core` is the runtime-agnostic memory engine. It owns the full Cognee lifecycle (remember, recall, improve/memify, forget) and the shared hook runtime, and knows nothing about any specific agent.
