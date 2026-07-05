@@ -75,6 +75,15 @@ function loadFileConfig(id?: WorkspaceIdentity): { data: Record<string, any>; fr
   return { data, from }
 }
 
+// The canonical config file location, so the wizard and resolveConfig agree on
+// where to read and write. Global is one memory across every project; project is
+// scoped to one repo. These match the paths resolveConfig reads below.
+export function cortexConfigPath(scope: "global" | "project", projectDir: string = process.cwd()): string {
+  return scope === "project"
+    ? join(projectDir, ".cortex-bridge", "config.json")
+    : join(homedir(), ".config", "cortex-bridge", "config.json")
+}
+
 export function resolveConfig(id?: WorkspaceIdentity, options?: Record<string, any>): CogneeConfig {
   const { data: file, from } = loadFileConfig(id)
 
