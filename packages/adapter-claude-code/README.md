@@ -27,6 +27,6 @@ That wires the three hooks into `~/.claude/settings.json` (idempotent, and it st
 
 ## Sharing memory across agents
 
-Cross-agent sharing needs one thing: the same dataset. Pin `CORTEX_DATASET` (or `dataset` in `~/.config/cortex-bridge/config.json`) to the same value here and in your OpenCode adapter (and any MCP agent). Then a decision made in one tool is recalled in the others.
+Cross-agent sharing needs one thing: the same dataset. Pin `CORTEX_DATASET` (or `dataset` in `~/.config/cortex-bridge/config.json`) to the same value here and in your other Cortex Bridge adapters (OpenCode, Codex, Kimi). Then a decision made in one tool is recalled in the others.
 
 Verify the whole loop with `bun run doctor` from the repo root.
