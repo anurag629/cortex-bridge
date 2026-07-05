@@ -2,7 +2,7 @@
 
 One memory graph, every coding agent. A shared, cross-agent memory layer backed by [Cognee](https://github.com/topoteretes/cognee): capture a decision in one agent, resume it in any other.
 
-Most AI coding agents forget everything between sessions, and none of them share memory with each other. Cortex Bridge fixes both. A runtime-agnostic core (`@cortex-bridge/core`) talks to a Cognee knowledge graph, and thin per-agent adapters wire it into each tool. Work in [OpenCode](https://opencode.ai), then open Claude Code or Cursor in the same repo, and the agent already knows what you changed and why.
+Most AI coding agents forget everything between sessions, and none of them share memory with each other. Cortex Bridge fixes both. A runtime-agnostic core (`@cortex-bridge/core`) talks to a Cognee knowledge graph, and thin per-agent adapters wire it into each tool. Work in [OpenCode](https://opencode.ai), then open Claude Code, Codex, or Kimi in the same repo, and the agent already knows what you changed and why.
 
 Built for the WeMakeDevs x Cognee hackathon. Runs fully local (self-hosted Cognee on Ollama, no external API) with a one-flag toggle to Cognee Cloud.
 
@@ -42,7 +42,7 @@ The adapter speaks HTTP to a running Cognee server through the core. Capture is 
 | `session.idle` | pair the question with the answer; debounced bridge to the graph | `POST /remember/entry`, `POST /improve` |
 | `dispose` | flush pending sessions into the graph | `POST /improve` |
 
-It also exposes five tools the model can call directly: `cortex_recall`, `cortex_remember`, `cortex_feedback`, `cortex_optimize` (run `memify` to consolidate and reweight the graph), and `cortex_forget` (prune stored memory). Together these exercise the full Cognee lifecycle: remember, recall, improve/memify, and forget.
+It also exposes six tools the model can call directly: `cortex_recall`, `cortex_remember`, `cortex_feedback`, `cortex_optimize` (run `memify` to consolidate and reweight the graph), `cortex_forget` (prune stored memory), and `cortex_handoff` (write a handoff into shared memory so another agent, or a later session in any tool, can resume). Together these exercise the full Cognee lifecycle: remember, recall, feedback, improve/memify, and forget.
 
 ## Server prerequisites
 
@@ -54,9 +54,11 @@ You need a running Cognee server (v1.2.1+). When starting it:
   - Fastest local dev: `ENABLE_BACKEND_ACCESS_CONTROL=False` and `REQUIRE_AUTHENTICATION=False`, then no credentials are needed.
   - Access control on (the default): set `CORTEX_USERNAME` / `CORTEX_PASSWORD` and the plugin logs in.
 
-Then `docker compose up` and confirm `curl localhost:8000/health` returns `{"status":"ready"}`.
+Cognee is a separate service. Self-host it from the [Cognee](https://github.com/topoteretes/cognee) repo, or use Cognee Cloud. Once it is up, `curl localhost:8000/health` should return a healthy status.
 
 ## Install
+
+The steps below are the manual path. If you ran `bun run setup`, skip them, the wizard already did all of this.
 
 ```bash
 bun install
