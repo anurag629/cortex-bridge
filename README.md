@@ -18,6 +18,20 @@ bun run setup
 
 The wizard detects your agents, asks what to wire up and where, then builds, writes the config, installs each adapter, checks the server, and offers to verify. `bun run remove` pulls it all back out. Prefer to do it by hand? See [HOW-TO-USE.md](HOW-TO-USE.md) for the manual route and the full walkthrough.
 
+## See it work
+
+A decision recorded by each agent, then recalled by a different one. It passes only if every write crosses over.
+
+![bun run allagents printing ALL-AGENTS PASS across OpenCode, Claude Code, Codex, and Kimi](assets/images/allagents-pass.png)
+
+The Cognee memory graph behind it, with the datasets, session handoffs, and documents Cortex Bridge wrote.
+
+![The Cognee memory graph, showing datasets and session handoff nodes](assets/images/cognee-graph.png)
+
+The quick two-agent canary: agent B recalls agent A's write on the shared session.
+
+![bun run doctor printing DOCTOR PASS](assets/images/doctor-pass.png)
+
 This repo is a workspace:
 
 - `packages/core` is the runtime-agnostic memory engine. It owns the full Cognee lifecycle (remember, recall, improve/memify, forget) and the shared hook runtime, and knows nothing about any specific agent.
